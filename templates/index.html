@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plot from Excel Data</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f8ff;
+            font-style: italic;
+        }
+        .page-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
+            background-color: #f0f8ff;
+            border-radius: 15px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        header {
+            background-color: rgb(174, 219, 237);
+            border-radius: 15px;
+            padding: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo-container, .title-container {
+            background-color: #d4f1f9;
+            border-radius: 15px;
+            padding: 10px;
+            display: center;
+            align-items: center;
+        }
+        .logo-container img {
+            height: 60px;
+        }
+        .title-container {
+            flex-grow: 1;
+            text-align: center;
+            margin: 0 20px;
+        }
+        .title-container h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        main {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            overflow: hidden;
+            background-color: rgb(174, 219, 237); 
+            border-radius: 15px;
+            padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .box {
+            flex: 1;
+            background-color: #d4f1f9;
+            border-radius: 15px;
+            padding: 20px;
+            overflow: auto;
+        }
+        .content-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .statistics-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .statistics-row {
+            display: flex;
+            flex-direction: column;
+        }
+        footer {
+            padding: 10px;
+            text-align: center;
+            background-color: rgb(174, 219, 237);
+            border-radius: 15px;
+            margin-top: 20px;
+            box-sizing: border-box;
+        }
+        .rounded-button {
+            font-style: italic;
+            background-color: #5d99e2;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: background-color 0.3s ease;
+        }
+        .rounded-button:hover {
+            background-color: #5d99e2;
+        }
+    </style>
+    <script>
+        function handleFileUpload() {
+            const fileInput = document.getElementById('file');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            fetch('/columns', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const xSelect = document.getElementById('x_select');
+                const ySelect = document.getElementById('y_select');
+
+                xSelect.innerHTML = '';
+                ySelect.innerHTML = '';
+
+                data.columns.forEach(col => {
+                    const option = document.createElement('option');
+                    option.value = col;
+                    option.textContent = col;
+                    xSelect.appendChild(option);
+                });
+
+                data.columns.forEach(col => {
+                    const label = document.createElement('label');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.name = 'y_select';
+                    checkbox.value = col;
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(col));
+                    ySelect.appendChild(label);
+                    ySelect.appendChild(document.createElement('br'));
+                });
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="page-container">
+        <header>
+            <div class="logo-container">
+                <img src="https://i.pinimg.com/564x/dc/71/2c/dc712c782791382a736cd0b34ab0b31f.jpg" alt="Logo">
+            </div>
+            <div class="title-container">
+                <h1>Data Plot</h1>
+            </div>
+        </header>
+        
+        <main>
+            <div class="box content-container">
+                <div>
+                    <h3>Upload an Excel File</h3>
+                    <form action="/" method="post" enctype="multipart/form-data" id="upload_form">
+                        <input type="file" name="file" id="file" class="rounded-button" onchange="handleFileUpload()">
+                        <br>
+                        <h4>Select Axis</h4>
+                        <label for="x_select">X-axis:</label>
+                        <select name="x_select" id="x_select" class="rounded-button"></select>
+                        <br>
+                        <label for="y_select">Y-axis:</label>
+                        <div id="y_select"></div>
+                        <br>
+                        <input type="submit" value="Plot" class="rounded-button">
+                    </form>    
+                </div>
+
+                {% if stats %}
+                <h3>Statistics</h3>
+                <div class="statistics-container">
+                    <div class="statistics-row">
+                        {% for stat_name, stat_values in stats.items() %}
+                        <div>
+                            <h4>{{ stat_name|capitalize }}</h4>
+                            <ul>
+                                {% for column, value in stat_values.items() %}
+                                <li>{{ column }}: {{ value }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="box">
+                {% if plot_filename %}
+                <h3>Plot from Excel Data</h3>
+                <img src="{{ url_for('static', filename=plot_filename) }}" alt="Plot" height="400">
+                <form action="/statistics" method="post">
+                    <input type="hidden" name="filename" value="{{ filename }}">
+                    <input type="hidden" name="x_column" value="{{ x_column }}">
+                    <input type="hidden" name="y_columns" value="{{ y_columns }}">
+                    <h4>Select Statistics</h4>
+                    <label><input type="checkbox" name="statistics_select" value="mean"> Mean</label><br>
+                    <label><input type="checkbox" name="statistics_select" value="median"> Median</label><br>
+                    <label><input type="checkbox" name="statistics_select" value="mode"> Mode</label><br>
+                    <label><input type="checkbox" name="statistics_select" value="range"> Range</label><br>
+                    <label><input type="checkbox" name="statistics_select" value="variance"> Variance</label><br>
+                    <label><input type="checkbox" name="statistics_select" value="std_dev"> Standard Deviation</label><br>
+                    <label><input type="checkbox" name="statistics_select" value="correlation"> Correlation</label><br>
+                    <input type="submit" value="Show Statistics" class="rounded-button">
+                </form>
+                {% endif %}
+            </div>
+        </main>
+
+        <footer>
+            <form action="/" method="get">
+                <button type="submit" class="rounded-button">Render</button>
+            </form>
+        </footer>
+    </div>
+</body>
+</html>
